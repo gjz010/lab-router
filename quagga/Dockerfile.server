@@ -1,0 +1,38 @@
+FROM centos
+
+RUN yum install gcc gcc-c++ -y
+RUN yum install gawk -y
+RUN yum install ncurses-libs ncurses-devel -y
+#RUN yum install readline-devel
+
+# Install Readline
+WORKDIR /
+RUN yum install wget make -y
+RUN wget -c ftp://ftp.gnu.org/gnu/readline/readline-6.2.tar.gz
+RUN tar -xzf readline-6.2.tar.gz
+WORKDIR /readline-6.2
+RUN ./configure
+RUN make && make install
+RUN ldconfig
+
+# Install Quagga
+RUN yum install perl cpan -y
+WORKDIR /
+COPY quagga-0.99.21-server.tar.gz /quagga-0.99.21-server.tar.gz
+RUN tar -xzf quagga-0.99.21-server.tar.gz
+WORKDIR /quagga-0.99.21-server
+ENV LIBS=-lpthread
+RUN bash ./configure --enable-vtysh --enable-ripd --disable-doc --disable-babeld --enable-isisd=no --disable-bgpd --disable-ospfd --disable-ospf6d \
+--disable-ospfclient --enable-user=root --enable-group=root --enable-vty-group=root
+RUN make && make install
+RUN ldconfig
+RUN mkdir /var/log/quagga/
+RUN cp /usr/local/etc/zebra.conf.sample /usr/local/etc/zebra.conf
+RUN cp /usr/local/etc/ripd.conf.sample /usr/local/etc/ripd.conf
+
+RUN echo "log file /var/log/quagga/zebra.log" >> /usr/local/etc/zebra.conf
+
+RUN yum install iputils net-tools -y
+
+COPY scripts/startup.sh /startup.sh
+CMD ["/startup.sh"]

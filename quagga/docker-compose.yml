@@ -1,0 +1,129 @@
+version: '2'
+
+services:
+  server-1:
+    container_name: server-1
+    image: gjz010/quagga-server:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.1
+      net2:
+        ipv4_address: 192.168.2.1
+  server-2:
+    container_name: server-2
+    image: gjz010/quagga-student:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.20
+      net2:
+        ipv4_address: 192.168.2.20
+  server-3:
+    container_name: server-3
+    image: gjz010/quagga-student:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.30
+      net2:
+        ipv4_address: 192.168.2.30
+  server-4:
+    container_name: server-4
+    image: gjz010/quagga-student:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.40
+      net2:
+        ipv4_address: 192.168.2.40
+  server-5:
+    container_name: server-5
+    image: gjz010/quagga-student:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.50
+      net2:
+        ipv4_address: 192.168.2.50
+  server-6:
+    container_name: server-6
+    image: gjz010/quagga-student:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.60
+      net2:
+        ipv4_address: 192.168.2.60
+  server-7:
+    container_name: server-7
+    image: gjz010/quagga-student:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.70
+      net2:
+        ipv4_address: 192.168.2.70
+  server-8:
+    container_name: server-8
+    image: gjz010/quagga-student:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.80
+      net2:
+        ipv4_address: 192.168.2.80
+
+networks:
+  net1:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.1.0/24
+         gateway: 192.168.1.2
+  net2:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.2.0/24
+         gateway: 192.168.2.2
