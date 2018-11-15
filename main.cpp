@@ -4,7 +4,7 @@
 #include "arpfind.h"
 #include "sendetherip.h"
 #include "recvroute.h"
-#include <pthread.h>
+//#include <pthread.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
 #define IP_HEADER_LEN sizeof(struct ip)
