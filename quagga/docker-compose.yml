@@ -1,6 +1,36 @@
 version: '2'
 
 services:
+  server-rip:
+    container_name: server-rip
+    image: gjz010/quagga-original:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.114
+      net2:
+        ipv4_address: 192.168.2.114
+  server-clean:
+    container_name: server-clean
+    image: gjz010/quagga-original:latest
+    restart: always
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.115
+      net2:
+        ipv4_address: 192.168.2.115
   server-1:
     container_name: server-1
     image: gjz010/quagga-server:latest

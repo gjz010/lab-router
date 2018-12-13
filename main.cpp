@@ -7,6 +7,8 @@
 //#include <pthread.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
+#include "sockethandler.h"
+#include "rip.h"
 #define IP_HEADER_LEN sizeof(struct ip)
 #define ETHER_HEADER_LEN sizeof(struct ether_header)
 
@@ -39,38 +41,28 @@ bool SetSocketBlockingEnabled(int fd, bool blocking)
 #endif
 }
 
-class SocketHandler{
-public:
-	SocketHandler(){
-
-	}
-	SocketHandler(int fd){
+SocketHandler::SocketHandler(int fd){
 		this->fd=fd;
+}
+int SocketHandler::bind(int epoll_fd){
+	efd=epoll_fd;
+	epoll_event ev;
+	ev.events=EPOLLIN |EPOLLET;
+	ev.data.ptr=this;
+	if(epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev)){
+		printf("Start poll in failed.");
+		return -1;
 	}
-	virtual void onEvent()=0;
-	int bind(int epoll_fd){
-		efd=epoll_fd;
-		epoll_event ev;
-		ev.events=EPOLLIN |EPOLLET;
-		ev.data.ptr=this;
-		if(epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev)){
-			printf("Start poll in failed.");
-			return -1;
-		}
-		return 0;
+	return 0;
+}
+int SocketHandler::unbind(){
+	epoll_event ev;
+	if(epoll_ctl(efd, EPOLL_CTL_DEL, fd, &ev)){
+		printf("Stop poll in failed.");
+		return -1;
 	}
-	int unbind(){
-		epoll_event ev;
-		if(epoll_ctl(efd, EPOLL_CTL_DEL, fd, &ev)){
-			printf("Stop poll in failed.");
-			return -1;
-		}
 
-	}
-protected:
-	int fd;
-	int efd;
-};
+}
 
 int epoll_fd;
 epoll_event events[100];
@@ -350,15 +342,15 @@ int main()
 	//创建raw socket套接字
 
 	
-	RawSocketHandler* rawSocket=new RawSocketHandler();
+	//RawSocketHandler* rawSocket=new RawSocketHandler();
 	//Linking raw socket into epoll
-	rawSocket->bind(epoll_fd);
+	//rawSocket->bind(epoll_fd);
 
-	MasterSocketHandler* master=new MasterSocketHandler(800);
-	master->bind(epoll_fd);
+	//MasterSocketHandler* master=new MasterSocketHandler(800);
+	//master->bind(epoll_fd);
 
-
-	
+	RipClient* rip=new RipClient();
+	rip->start(epoll_fd);
 	
 	//路由表初始化
 	

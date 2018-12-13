@@ -1,5 +1,5 @@
-main : main.o  lookuproute.o checksum.o arpfind.o sendetherip.o recvroute.o
-		g++ -std=c++11 -o main -static main.o lookuproute.o checksum.o arpfind.o sendetherip.o recvroute.o -lpthread -g
+main : main.o  lookuproute.o checksum.o rip.o arpfind.o sendetherip.o recvroute.o
+		g++ -std=c++11 -o main -static main.o rip.o lookuproute.o checksum.o arpfind.o sendetherip.o recvroute.o -lpthread -g
 main.o      : main.cpp      lookuproute.h checksum.h arpfind.h sendetherip.h recvroute.h
 		g++ -std=c++11 -c main.cpp
 lookuproute.o : lookuproute.cpp lookuproute.h
@@ -12,8 +12,10 @@ sendetherip.o : sendetherip.cpp sendetherip.h
 		g++ -std=c++11 -c sendetherip.cpp
 recvroute.o : recvroute.cpp recvroute.h
 		g++ -std=c++11 -c recvroute.cpp
+rip.o : rip.cpp rip.h
+		g++ -std=c++11 -c rip.cpp
 clean :
-		rm main  main.o lookuproute.o checksum.o arpfind.o sendetherip.o recvroute.o
+		rm main  main.o rip.o lookuproute.o checksum.o arpfind.o sendetherip.o recvroute.o
 SUBDIR = $(shell ls ./ -R | grep /)
 SUBDIRS  = $(subst :,/,$(SUBDIR))
 SOURCE = $(foreach dir, $(SUBDIRS),$(wildcard $(dir)*.o))
