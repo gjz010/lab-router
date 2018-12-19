@@ -91,10 +91,23 @@ private:
     char buf[100000];
     char cmsgbuf[100000];
     std::vector<IfInfo> info;
+    std::unordered_map<RouteKey, RouteEntry> entries;
+    void addTestEntry(){
+        RouteEntry test;
+        test.usFamily=htons(2);
+        test.usTag=0;
+        test.stAddr.s_addr=inet_addr("192.168.81.89");
+        test.stSubnetMask.s_addr=inet_addr("255.255.255.255");
+        test.stNexthop.s_addr=inet_addr("192.168.1.40");
+        test.uiMetric=4;
+        test.uiIfIndex=info[0].iface_index;
+        entries.insert(std::make_pair(test.extract(), test));
+    }
 public:
 
     RIPSocketManager(std::vector<IfInfo> info):info(info){
         //Create the holy socket.
+        addTestEntry();
         fd=socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
         if(fd==-1){
             perror("create udp socket error\n");
@@ -108,6 +121,14 @@ public:
         optval=1;
         if(setsockopt(fd, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval))<0){
             perror("IP_PKTINFO fail\n");
+            exit(1);
+        }
+
+        int loop = 0;
+        int err = setsockopt(fd,IPPROTO_IP, IP_MULTICAST_LOOP,&loop, sizeof(loop));
+        if(err < 0)
+        {
+            perror("setsockopt():IP_MULTICAST_LOOP\n");
             exit(1);
         }
         sockaddr_in addr;
@@ -132,7 +153,7 @@ public:
 private:
     in_addr last_iface;
     int last_iface_index;
-    std::unordered_map<RouteKey, RouteEntry> entries;
+    
     void reply(char* buffer, int len){
         setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &last_iface, sizeof(last_iface));
         sockaddr_in destination;
@@ -152,6 +173,7 @@ private:
                 oent=entry;
                 if(oent.uiMetric>=16){
                     printf("Route broken!\n");
+                    oent.uiMetric=16;
                     //TODO: Do route erase.
                     //entries.erase(k);
                 }
@@ -178,8 +200,10 @@ private:
         packet.ucVersion=2;
         packet.usZero=0;
         int cent=0;
+        int sent=0;
         for(auto iter=entries.begin();iter!=entries.end();iter++){
             auto& re=iter->second;
+            re.print();
             packet.RipEntries[cent].usFamily=re.usFamily;
             packet.RipEntries[cent].usTag=re.usTag;
             packet.RipEntries[cent].stAddr=re.stAddr;
@@ -194,11 +218,15 @@ private:
             if(cent==RIP_MAX_ENTRY){
                 reply((char*)(&packet), cent*sizeof(RipEntry)+RIP_PACKET_HEAD);
                 cent=0;
+                sent=1;
             }
         }
-        if(cent!=0){
+        if(cent!=0 || sent==0){
+            printf("Sending last route.\n");
             reply((char*)(&packet), cent*sizeof(RipEntry)+RIP_PACKET_HEAD);
+            printf("Sending last routes done.\n");
         }
+        printf("Sending all routes done.\n");
     }
 
     void parsePacket(const char* buffer, int len, sockaddr_in src){
@@ -323,5 +351,6 @@ RipClient::RipClient(){
 void RipClient::start(int efd){
     printf("RIP Client Starting...\n");
     internal->sender->start(efd);
+    internal->manager->bind(efd);
     printf("RIP Client Started!\n");
 }

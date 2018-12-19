@@ -64,6 +64,13 @@ typedef struct RouteEntry
 	struct in_addr stNexthop;
 	unsigned int uiMetric;
 	unsigned int uiIfIndex;
+	void print() const{
+		printf("Router Entry [F: %d, T: %d] ", (int)(ntohs(usFamily)), (int)(ntohs(usTag)));
+		printf("%s ", inet_ntoa(stAddr));
+		printf("%s ", inet_ntoa(stSubnetMask));
+		printf("%s ", inet_ntoa(stNexthop));
+		printf("%d If:%d\n",uiMetric, uiIfIndex);
+	}
 	RouteKey extract() const{
 		RouteKey k;
 		k.stAddr=stAddr;
