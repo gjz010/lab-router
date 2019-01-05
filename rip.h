@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
-
+#include "lookuproute.h"
 #define RIP_VERSION    	2
 #define RIP_REQUEST    	1
 #define RIP_RESPONSE   	2
@@ -96,6 +96,7 @@ private:
 public:
     RipClient();
     void start(int epoll_fd);
+	bool checkDirectConnect(in_addr target, nextaddr* naddr);
 private:
 
 };

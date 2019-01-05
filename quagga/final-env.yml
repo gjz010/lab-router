@@ -1,0 +1,122 @@
+version: '2'
+
+services:
+  fserver-1:
+    container_name: server-1
+    image: gjz010/lab-router
+    restart: always
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net1:
+        ipv4_address: 192.168.1.1
+      net2:
+        ipv4_address: 192.168.2.1
+  fserver-2:
+    container_name: server-2
+    image: gjz010/lab-router
+    restart: always
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net2:
+        ipv4_address: 192.168.2.2
+      net3:
+        ipv4_address: 192.168.3.1
+  fserver-3:
+    container_name: server-3
+    image: gjz010/lab-router
+    restart: always
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net3:
+        ipv4_address: 192.168.3.2
+      net4:
+        ipv4_address: 192.168.4.1
+  fserver-4:
+    container_name: server-4
+    image: gjz010/lab-router
+    restart: always
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net4:
+        ipv4_address: 192.168.4.2
+      net5:
+        ipv4_address: 192.168.5.1
+  fserver-5:
+    container_name: server-5
+    image: gjz010/lab-router
+    restart: always
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+    volumes:
+      - ./app:/app
+    networks:
+      net5:
+        ipv4_address: 192.168.5.2
+      net6:
+        ipv4_address: 192.168.6.1
+
+networks:
+  net1:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.1.0/24
+         gateway: 192.168.1.100
+  net2:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.2.0/24
+         gateway: 192.168.2.100
+  net3:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.3.0/24
+         gateway: 192.168.3.100
+  net4:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.4.0/24
+         gateway: 192.168.4.100
+
+  net5:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.5.0/24
+         gateway: 192.168.5.100
+  net6:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 192.168.6.0/24
+         gateway: 192.168.6.100

@@ -22,7 +22,7 @@ struct nexthop
    unsigned int ifindex;//zlw ifindex2ifname()获取出接�?   // Nexthop address 
    struct in_addr nexthopaddr;
    nexthop();
-   nexthop(char* ifname, unsigned int ifindex, unsigned long nexthop_addr);
+   nexthop(const char* ifname, unsigned int ifindex, unsigned long nexthop_addr);
    ~nexthop();
 };
 
@@ -37,7 +37,7 @@ struct nextaddr
 */
 
 extern struct route *route_table; 
-int insert_route(unsigned long  ip4prefix,unsigned int prefixlen,char *ifname,unsigned int ifindex,unsigned long  nexthopaddr);
+int insert_route(unsigned long  ip4prefix,unsigned int prefixlen,const char *ifname,unsigned int ifindex,unsigned long  nexthopaddr);
 int lookup_route(struct in_addr dstaddr,nextaddr *nexthopinfo);
 int delete_route(struct in_addr dstaddr,unsigned int prefixlen);
 

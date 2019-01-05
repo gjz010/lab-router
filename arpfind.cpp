@@ -15,9 +15,13 @@
 #include <stdio.h>
 
 std::unordered_map<std::string, struct arpmac> arptable;
-
+int pin=0;
 //这query真丢人
 int queryArp(const char* ifn, const char* caddr, char* mac){
+	if(pin==0){
+		pin=socket(AF_INET, SOCK_DGRAM, 0);
+	}
+	printf("Query arp from %s for caddr %s\n", ifn, caddr);
         std::string cmd="ping -c 1 "+std::string(caddr);
         system(cmd.c_str());
         in_addr ip;
@@ -29,10 +33,16 @@ int queryArp(const char* ifn, const char* caddr, char* mac){
         addr->sin_addr=ip;
         strncpy(arp.arp_dev, ifn, 15);
 
-        int pin=socket(AF_INET, SOCK_DGRAM, 0);
+        //int pin=socket(AF_INET, SOCK_DGRAM, 0);
         int ret=ioctl(pin, SIOCGARP, &arp);
-        shutdown(pin,2);
-        if(ret<0) return -1;
+        if(ret<0){
+		perror("Remote arp error");
+        //shutdown(pin,2);
+
+		return -1;
+	}
+        //shutdown(pin,2);
+
         if(arp.arp_flags & ATF_COM){
                 memcpy(mac, arp.arp_ha.sa_data, 6);
                 return 0;
@@ -69,7 +79,8 @@ int getLocalArp(const char* ifname, char* mac){
         strcpy(s.ifr_name, ifname);
         
         if(ioctl(fd, SIOCGIFHWADDR, &s)){
-                shutdown(fd,2);
+                perror("Local arp error ");
+		shutdown(fd,2);
                 return -1;
         }else{
                 shutdown(fd,2);

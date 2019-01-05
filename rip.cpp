@@ -10,10 +10,12 @@
 #include <list>
 #include <unordered_map>
 #include <algorithm>
+#include "lookuproute.h"
 struct IfInfo{
     struct in_addr ip;
     std::string iface;
     unsigned int iface_index;
+    struct in_addr mask;
 };
 
 namespace std{
@@ -55,17 +57,21 @@ std::vector<IfInfo> localIfInfo()
     std::vector<IfInfo> ret;
 	while(pstIpAddrStruct != NULL)
 	{
+        printf("%d %s\n", pstIpAddrStruct->ifa_addr->sa_family, (const char*)pstIpAddrStruct->ifa_name) ;
 		if(pstIpAddrStruct->ifa_addr->sa_family==AF_INET)
 		{
+            
 			pAddrPtr = &((struct sockaddr_in *)pstIpAddrStruct->ifa_addr)->sin_addr;
 			char cAddrBuf[INET_ADDRSTRLEN];
 			memset(&cAddrBuf,0,sizeof(INET_ADDRSTRLEN));
 			inet_ntop(AF_INET, pAddrPtr, cAddrBuf, INET_ADDRSTRLEN);
-			if(strcmp((const char*)&cAddrBuf,pcLo) != 0)
+			if(strcmp((const char*)&cAddrBuf,pcLo) != 0 )
 			{
                 info.ip.s_addr=inet_addr((const char*)&cAddrBuf);
                 info.iface=std::string((const char*)pstIpAddrStruct->ifa_name);
                 info.iface_index=if_nametoindex((const char*)pstIpAddrStruct->ifa_name);
+		info.mask=((struct sockaddr_in *)pstIpAddrStruct->ifa_netmask)->sin_addr;
+                printf("%s\n", (const char*)pstIpAddrStruct->ifa_name);
                 ret.push_back(info);
 				//pcLocalAddr[i] = (char *)malloc(sizeof(INET_ADDRSTRLEN));
 				//pcLocalName[i] = (char *)malloc(sizeof(IF_NAMESIZE));
@@ -104,7 +110,17 @@ private:
         entries.insert(std::make_pair(test.extract(), test));
     }
 public:
-
+    bool checkDirectConnect(in_addr target, nextaddr* naddr){
+	for(auto iter=info.begin(); iter!=info.end(); iter++){
+		if(target.s_addr!=iter->ip.s_addr && (target.s_addr & iter->mask.s_addr) == (iter->ip.s_addr & iter->mask.s_addr)){
+			naddr->ifname=iter->iface;
+			naddr->ifindex=iter->iface_index;
+			naddr->nexthopaddr=target;
+			return true;
+		}
+	}
+	return false;
+    }
     RIPSocketManager(std::vector<IfInfo> info):info(info){
         //Create the holy socket.
         addTestEntry();
@@ -116,6 +132,11 @@ public:
         int optval=1;
         if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))<0){
             perror("SO_REUSEADDR fail\n");
+            exit(1);
+        }
+        optval=1;
+       if(setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))<0){
+            perror("SO_REUSEPORT, fail\n");
             exit(1);
         }
         optval=1;
@@ -133,7 +154,7 @@ public:
         }
         sockaddr_in addr;
         memset(&addr, 0, sizeof(sockaddr_in));
-        addr.sin_family=AF_INET;
+        addr.sin_family=PF_INET;
         addr.sin_addr.s_addr=htonl(INADDR_ANY);
         addr.sin_port=htons(520);
         if(::bind(fd, (sockaddr*)&addr, sizeof(sockaddr))==-1){
@@ -143,6 +164,7 @@ public:
         struct ip_mreq mreq;
         mreq.imr_multiaddr.s_addr=inet_addr(RIP_GROUP);
         for(auto iter=info.begin();iter!=info.end();iter++){
+            printf("Add %s\n", iter->iface.c_str());
             mreq.imr_interface=iter->ip;
             if(setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq))==-1){
                 perror("fail add to multicast\n");
@@ -153,7 +175,7 @@ public:
 private:
     in_addr last_iface;
     int last_iface_index;
-    
+    std::string last_iface_name;
     void reply(char* buffer, int len){
         setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &last_iface, sizeof(last_iface));
         sockaddr_in destination;
@@ -163,7 +185,9 @@ private:
         destination.sin_port = htons(520);
         sendto(fd, buffer, len, 0, (struct sockaddr*)&destination, sizeof(destination));
     }
-
+    unsigned int prefix(in_addr ip){
+        return 24;
+    }
     void updateEntry(const RouteEntry& entry){
         RouteKey k=entry.extract();
         if(entries.count(k)){
@@ -174,19 +198,24 @@ private:
                 if(oent.uiMetric>=16){
                     printf("Route broken!\n");
                     oent.uiMetric=16;
+                    
                     //TODO: Do route erase.
+                    delete_route(entry.stAddr, prefix(entry.stSubnetMask));
                     //entries.erase(k);
                 }
             }else{
                 printf("Faster route?\n");
                 if(entry.uiMetric<oent.uiMetric){
                     oent=entry;
+                    delete_route(entry.stAddr, prefix(entry.stSubnetMask));
+                    insert_route(entry.stAddr.s_addr, prefix(entry.stSubnetMask), last_iface_name.c_str(), last_iface_index, entry.stNexthop.s_addr);
                     //TODO: Do route replace.
                 }
             }
         }else{
             if(entry.uiMetric<16){
                 entries.insert(std::make_pair(k, entry));
+                insert_route(entry.stAddr.s_addr, prefix(entry.stSubnetMask), last_iface_name.c_str(), last_iface_index,  entry.stNexthop.s_addr);
                 //TODO: Do route insert.
             }else{
                 printf("Dead route received and nothing happens.\n");
@@ -201,6 +230,19 @@ private:
         packet.usZero=0;
         int cent=0;
         int sent=0;
+	for(auto iter=info.begin(); iter!=info.end(); iter++){
+	    packet.RipEntries[cent].usFamily=htons(AF_INET);
+            packet.RipEntries[cent].usTag=0;
+            packet.RipEntries[cent].stAddr=iter->ip;
+            packet.RipEntries[cent].stSubnetMask.s_addr=inet_addr("255.255.255.0");
+	    packet.RipEntries[cent].stNexthop.s_addr=inet_addr("0.0.0.0");
+	    cent++;
+            if(cent==RIP_MAX_ENTRY){
+                reply((char*)(&packet), cent*sizeof(RipEntry)+RIP_PACKET_HEAD);
+                cent=0;
+                sent=1;
+            }
+	}
         for(auto iter=entries.begin();iter!=entries.end();iter++){
             auto& re=iter->second;
             re.print();
@@ -252,7 +294,7 @@ private:
                 entry.uiMetric=ntohl(packet->RipEntries[i].uiMetric)+1;
                 updateEntry(entry);
             }
-        }
+        }else printf("Bad packet!\n");
     }
     bool handlePacket(){
         struct iovec iov[1];
@@ -276,16 +318,27 @@ private:
         for(cmsg=CMSG_FIRSTHDR(&message); cmsg!=NULL; cmsg=CMSG_NXTHDR(&message, cmsg)){
             if(cmsg->cmsg_level!=IPPROTO_IP || cmsg->cmsg_type!=IP_PKTINFO) continue;
             struct in_pktinfo* pi=(in_pktinfo*)CMSG_DATA(cmsg);
-            last_iface=pi->ipi_spec_dst;
-            last_iface_index=pi->ipi_ifindex;
+            for(auto iter=info.begin();iter!=info.end();iter++){
+                if(pi->ipi_ifindex==iter->iface_index){
+                    last_iface=iter->ip;
+                    last_iface_index=iter->iface_index;
+                    last_iface_name=iter->iface;
+                    break;
+                }
+
+            }
+            //last_iface=pi->ipi_spec_dst;
+            //last_iface_index=pi->ipi_ifindex;
+            //last_iface_name=pi->pip
         }
         parsePacket(buf, size, their);
-        
+        return false;
     }
 public:
     void multicast(char* buffer, int len){
         for(auto iter=info.begin();iter!=info.end();iter++){
             last_iface=iter->ip;
+            last_iface_index=iter->iface_index;
             reply(buffer, len);
         }
     }
@@ -327,12 +380,13 @@ public:
 
     }
     void onEvent(){
-        printf("PingPong!\n");
+        printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PingPong!\n");
         long long buf;
         while(read(fd, &buf, sizeof(uint64_t))>0) ;
         manager->multicast(REQUEST_PACKET, sizeof(REQUEST_PACKET));
         //Fire a packet.
     }
+    
 };
 
 struct RipClient::Internal{
@@ -353,4 +407,8 @@ void RipClient::start(int efd){
     internal->sender->start(efd);
     internal->manager->bind(efd);
     printf("RIP Client Started!\n");
+}
+
+bool RipClient::checkDirectConnect(in_addr target, nextaddr* naddr){
+    return internal->manager->checkDirectConnect(target, naddr);
 }

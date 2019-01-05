@@ -19,11 +19,11 @@ union {
 	char buf[sizeof(selfroute)];
 } routebuf;
 int bufcounter;
-
+RipClient* rip;
 int route_receiver;
 int static_route_get(struct selfroute *selfrt)
 {
-
+	return 0;
 }
 
 bool SetSocketBlockingEnabled(int fd, bool blocking)
@@ -61,7 +61,7 @@ int SocketHandler::unbind(){
 		printf("Stop poll in failed.");
 		return -1;
 	}
-
+	return 0;
 }
 
 int epoll_fd;
@@ -215,18 +215,18 @@ public:
 			if(recvlen>0)
 			{
 				printf("%d\n", recvlen);
-				for(int i=0;i<recvlen;i++){
-					printf("%02X ", (unsigned int)(skbuf[i] & 0xFF));
-				}
+				//for(int i=0;i<recvlen;i++){
+				//	printf("%02X ", (unsigned int)(skbuf[i] & 0xFF));
+				//}
 				printf("\n");
 				ip_recvpkt = (struct ip *)(skbuf+ETHER_HEADER_LEN);
 				
 				//192.168.1.10是测试服务器的IP，现在测试服务器IP是192.168.1.10到192.168.1.80.
 				//使用不同的测试服务器要进行修改对应的IP。然后再编译。
 				//192.168.6.2是测试时候ping的目的地址。与静态路由相对应。
-				if(ip_recvpkt->ip_src.s_addr == inet_addr("192.168.1.1") && ip_recvpkt->ip_dst.s_addr == inet_addr("192.168.114.54") )
+				if(1)
 				{
-					printf("Caught!\n");
+					
 					//分析打印ip数据包的源和目的ip地址
 				//	analyseIP(ip_recvpkt);
 					/*
@@ -271,11 +271,19 @@ public:
 
 						//查找路由表，获取下一跳ip地址和出接口模块
 						nextaddr nexthopinfo;
+						printf("Caught pkt from %s!\n", inet_ntoa(ip_recvpkt->ip_dst));
 						{
+							
 							printf("Finding route\n");
 							if(lookup_route(ip_recvpkt->ip_dst, &nexthopinfo)){
+								if(rip->checkDirectConnect(ip_recvpkt->ip_dst, &nexthopinfo)){
+									printf("Subnet route found!\n");
+
+								}else{
+
 								printf("No route found!\n");
 								continue;
+								}
 							}
 							printf("Route found\n");
 						//调用查找路由函数lookup_route，获取下一跳ip地址和出接口
@@ -306,7 +314,8 @@ public:
 							memcpy(socket_address.sll_addr, dstmac.mac, 6);
 							if(sendto(fd, skbuf, recvlen, 0, (sockaddr*)&socket_address, sizeof(sockaddr_ll))<0){
 								printf("Send failed\n");
-							}
+							}else printf("Done.\n");
+
 
 						//调用ip_transmit函数   填充数据包，通过原始套接字从查表得到的出接口(比如网卡2)将数据包发送出去
 						//将获取到的下一跳接口信息存储到存储接口信息的结构体ifreq里，通过ioctl获取出接口的mac地址作为数据包的源mac地址
@@ -342,14 +351,14 @@ int main()
 	//创建raw socket套接字
 
 	
-	//RawSocketHandler* rawSocket=new RawSocketHandler();
+	RawSocketHandler* rawSocket=new RawSocketHandler();
 	//Linking raw socket into epoll
-	//rawSocket->bind(epoll_fd);
+	rawSocket->bind(epoll_fd);
 
-	//MasterSocketHandler* master=new MasterSocketHandler(800);
-	//master->bind(epoll_fd);
+	MasterSocketHandler* master=new MasterSocketHandler(800);
+	master->bind(epoll_fd);
 
-	RipClient* rip=new RipClient();
+	rip=new RipClient();
 	rip->start(epoll_fd);
 	
 	//路由表初始化

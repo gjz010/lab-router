@@ -25,19 +25,19 @@ public:
         unsigned char* caster=(unsigned char*)(&prefix);
         Node* iter=root;
         nexthop* val=root->val;
-        printf("%d\n", prefix);
+        //printf("%d\n", prefix);
         //Can be manually unrolled to speed up
         for(int i=0;i<4;i++){
             for(int j=7;j>=0;j--){
                 //printf("%d\n", iter);
                 
                 int dir=(caster[i]>>j)&1;
-                printf("addr: %d %d next: %d %d\n", iter, dir, iter->next[0], iter->next[1]);
+                //printf("addr: %d %d next: %d %d\n", iter, dir, iter->next[0], iter->next[1]);
                 iter=iter->next[dir];
                 if(iter==nullptr){
                     goto query_done;
                 }else{
-                    printf("addr2: %d\n", iter);
+                    //printf("addr2: %d\n", iter);
                     if(iter->val!=nullptr) val=iter->val;
                 }
             }
@@ -129,7 +129,7 @@ TrieRoute router;
 nexthop::nexthop(){
 
 }
-nexthop::nexthop(char* ifname, unsigned int ifindex, unsigned long nexthop_addr){
+nexthop::nexthop(const char* ifname, unsigned int ifindex, unsigned long nexthop_addr){
     this->ifname=std::string(ifname);
     this->ifindex=ifindex;
     this->nexthopaddr.s_addr=nexthop_addr;
@@ -137,7 +137,7 @@ nexthop::nexthop(char* ifname, unsigned int ifindex, unsigned long nexthop_addr)
 nexthop::~nexthop(){
     //delete ifname;
 }
-int insert_route(unsigned long  ip4prefix,unsigned int prefixlen,char *ifname,unsigned int ifindex,unsigned long  nexthopaddr)
+int insert_route(unsigned long  ip4prefix,unsigned int prefixlen,const char *ifname,unsigned int ifindex,unsigned long  nexthopaddr)
 {
     nexthop addr(ifname, ifindex, nexthopaddr);
 	router.insert(ip4prefix, prefixlen, &addr);

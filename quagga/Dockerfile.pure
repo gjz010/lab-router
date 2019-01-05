@@ -1,0 +1,8 @@
+FROM centos
+
+RUN yum install gcc gcc-c++ -y
+RUN yum install gawk -y
+RUN yum install ncurses-libs ncurses-devel -y
+RUN yum install net-tools tcpdump -y
+
+CMD ["/app/main"]
