@@ -65,7 +65,7 @@ std::vector<IfInfo> localIfInfo()
 			char cAddrBuf[INET_ADDRSTRLEN];
 			memset(&cAddrBuf,0,sizeof(INET_ADDRSTRLEN));
 			inet_ntop(AF_INET, pAddrPtr, cAddrBuf, INET_ADDRSTRLEN);
-			if(strcmp((const char*)&cAddrBuf,pcLo) != 0 )
+			if(strcmp((const char*)&cAddrBuf,pcLo) != 0  && (*(in_addr_t*)pAddrPtr&(inet_addr("192.168.137.0")))!=inet_addr("192.168.137.0"))
 			{
                 info.ip.s_addr=inet_addr((const char*)&cAddrBuf);
                 info.iface=std::string((const char*)pstIpAddrStruct->ifa_name);
@@ -99,15 +99,15 @@ private:
     std::vector<IfInfo> info;
     std::unordered_map<RouteKey, RouteEntry> entries;
     void addTestEntry(){
-        RouteEntry test;
-        test.usFamily=htons(2);
-        test.usTag=0;
-        test.stAddr.s_addr=inet_addr("192.168.81.89");
-        test.stSubnetMask.s_addr=inet_addr("255.255.255.255");
-        test.stNexthop.s_addr=inet_addr("192.168.1.40");
-        test.uiMetric=4;
-        test.uiIfIndex=info[0].iface_index;
-        entries.insert(std::make_pair(test.extract(), test));
+        //RouteEntry test;
+        //test.usFamily=htons(2);
+        //test.usTag=0;
+        //test.stAddr.s_addr=inet_addr("192.168.81.89");
+        //test.stSubnetMask.s_addr=inet_addr("255.255.255.255");
+        //test.stNexthop.s_addr=inet_addr("192.168.1.40");
+        //test.uiMetric=4;
+        //test.uiIfIndex=info[0].iface_index;
+        //entries.insert(std::make_pair(test.extract(), test));
     }
 public:
     bool checkDirectConnect(in_addr target, nextaddr* naddr){
@@ -231,11 +231,20 @@ private:
         int cent=0;
         int sent=0;
 	for(auto iter=info.begin(); iter!=info.end(); iter++){
+                printf("Router Entry [F: %d, T: %d] ", (int)(AF_INET), (int)(0));
+                printf("%s ", inet_ntoa(iter->ip));
+		in_addr mask;
+		mask.s_addr=inet_addr("255.255.255.0");
+                printf("%s ", inet_ntoa(mask));
+                printf("%s ", "0.0.0.0");
+                printf("%d If:%d\n",0, iter->iface_index);
 	    packet.RipEntries[cent].usFamily=htons(AF_INET);
             packet.RipEntries[cent].usTag=0;
             packet.RipEntries[cent].stAddr=iter->ip;
+	    packet.RipEntries[cent].stAddr.s_addr=packet.RipEntries[cent].stAddr.s_addr&inet_addr("255.255.255.0");
             packet.RipEntries[cent].stSubnetMask.s_addr=inet_addr("255.255.255.0");
 	    packet.RipEntries[cent].stNexthop.s_addr=inet_addr("0.0.0.0");
+	    packet.RipEntries[cent].uiMetric=0;
 	    cent++;
             if(cent==RIP_MAX_ENTRY){
                 reply((char*)(&packet), cent*sizeof(RipEntry)+RIP_PACKET_HEAD);
@@ -249,9 +258,10 @@ private:
             packet.RipEntries[cent].usFamily=re.usFamily;
             packet.RipEntries[cent].usTag=re.usTag;
             packet.RipEntries[cent].stAddr=re.stAddr;
+	    packet.RipEntries[cent].stAddr.s_addr&=re.stSubnetMask.s_addr;
             packet.RipEntries[cent].stSubnetMask=re.stSubnetMask;
             packet.RipEntries[cent].stNexthop=re.stNexthop;
-            if(re.stNexthop.s_addr==their.s_addr){
+            if(re.uiIfIndex==last_iface_index/*re.stNexthop.s_addr==their.s_addr*/){
                 packet.RipEntries[cent].uiMetric=htonl(16);
             }else{
                 packet.RipEntries[cent].uiMetric=htonl(re.uiMetric);
@@ -272,7 +282,7 @@ private:
     }
 
     void parsePacket(const char* buffer, int len, sockaddr_in src){
-        printf("Packet(%s) received with size %d\n", inet_ntoa(src.sin_addr), len);
+        printf("Rip Packet(%s) received with size %d\n", inet_ntoa(src.sin_addr), len);
         int entry_items=(len-sizeof(RIP_PACKET_HEAD))/sizeof(RipEntry);
         RipPacket* packet=(RipPacket*)buffer;
         if(packet->ucCommand==1){ //request
@@ -292,7 +302,8 @@ private:
                 entry.stSubnetMask=packet->RipEntries[i].stSubnetMask;
                 entry.stNexthop=src.sin_addr;
                 entry.uiMetric=ntohl(packet->RipEntries[i].uiMetric)+1;
-                updateEntry(entry);
+                entry.uiIfIndex=last_iface_index;
+		updateEntry(entry);
             }
         }else printf("Bad packet!\n");
     }
@@ -339,6 +350,7 @@ public:
         for(auto iter=info.begin();iter!=info.end();iter++){
             last_iface=iter->ip;
             last_iface_index=iter->iface_index;
+	    sendAllEntries(in_addr());
             reply(buffer, len);
         }
     }

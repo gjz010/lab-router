@@ -75,15 +75,15 @@ int arpGet(struct arpmac *srcmac,const char *ifname, char *ipStr)
                                                                                                           
 int getLocalArp(const char* ifname, char* mac){
         struct ifreq s;
-        int fd=socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+        static int fd=socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
         strcpy(s.ifr_name, ifname);
         
         if(ioctl(fd, SIOCGIFHWADDR, &s)){
                 perror("Local arp error ");
-		shutdown(fd,2);
+		//shutdown(fd,2);
                 return -1;
         }else{
-                shutdown(fd,2);
+                //shutdown(fd,2);
                 memcpy(mac, s.ifr_addr.sa_data, 6);
                 return 0;
         }
